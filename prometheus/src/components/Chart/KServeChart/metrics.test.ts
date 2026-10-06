@@ -1,5 +1,6 @@
+import { formatRatioPercent } from './KServeGpuChart';
 import { formatLatencySeconds } from './KServeLatencyChart';
-import { getKServePodSelector, getKServeQueries } from './metrics';
+import { getKServeGpuQueries, getKServePodSelector, getKServeQueries } from './metrics';
 
 describe('KServe InferenceService queries', () => {
   test('builds predictor queries by default', () => {
@@ -69,5 +70,40 @@ describe('formatLatencySeconds', () => {
 
   test('passes through non-numeric values', () => {
     expect(formatLatencySeconds('n/a')).toBe('n/a');
+  });
+});
+
+describe('KServe InferenceService GPU queries', () => {
+  const q = getKServeGpuQueries('lab-models', 'esci-v3-candidate');
+  const selector = "namespace='lab-models',pod=~'esci-v3-candidate-predictor-.*'";
+
+  it('reads dcgm-exporter series by pod, converting percent and MiB', () => {
+    expect(q.utilization.startsWith(`avg(DCGM_FI_DEV_GPU_UTIL{${selector}}) / 100 or `)).toBe(true);
+    expect(q.memoryUsed.startsWith(`sum(DCGM_FI_DEV_FB_USED{${selector}}) * 1048576 or `)).toBe(
+      true
+    );
+    expect(q.memoryTotal).toContain(`DCGM_FI_DEV_FB_FREE{${selector}}`);
+  });
+
+  it('falls back to nvidia_smi series on the nodes of pods that request a GPU', () => {
+    const gpuNodes = `max by (node) (kube_pod_container_resource_limits{${selector},resource='nvidia_com_gpu'} > bool 0)`;
+    expect(q.utilization).toContain(
+      `avg(max by (node) (nvidia_smi_utilization_gpu_ratio * on (node) group_left () ${gpuNodes}))`
+    );
+    expect(q.memoryUsed).toContain(
+      `sum(max by (node) (nvidia_smi_memory_used_bytes * on (node) group_left () ${gpuNodes}))`
+    );
+    expect(q.memoryTotal).toContain('nvidia_smi_memory_total_bytes');
+  });
+
+  it('selects the requested component', () => {
+    expect(getKServeGpuQueries('ns', 'svc', 'transformer').utilization).toContain(
+      "pod=~'svc-transformer-.*'"
+    );
+  });
+
+  it('formats utilisation as a percentage', () => {
+    expect(formatRatioPercent(0.074)).toBe('7%');
+    expect(formatRatioPercent(1)).toBe('100%');
   });
 });

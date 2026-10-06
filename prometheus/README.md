@@ -10,7 +10,7 @@ normal no-data state.
 ## KServe InferenceService Charts
 
 KServe `serving.kserve.io` `InferenceService` resources show request rate, p50/p95/p99 latency,
-and CPU and memory usage for the predictor pods. Pods are matched by name
+CPU and memory usage, and GPU utilisation and memory for the predictor pods. Pods are matched by name
 (`<name>-predictor-...`), so both raw and Knative (serverless) deployment modes are covered.
 
 - Request rate and latency use the `request_predict_seconds` histogram exported by KServe's
@@ -20,6 +20,12 @@ and CPU and memory usage for the predictor pods. Pods are matched by name
 - Prometheus must scrape the model server. KServe predictor containers do not declare container
   ports, so a `PodMonitor` needs a relabelling rule that sets the target address to
   `<podIP>:8080`, the model server's default HTTP port, which also serves `/metrics`.
+- A GPU tab shows utilisation and memory for the GPUs the component's pods request
+  (`nvidia.com/gpu`). It reads NVIDIA dcgm-exporter series by pod when they exist, and otherwise
+  `nvidia_smi_*` series from nvidia_gpu_exporter on the nodes of those pods (for nodes without
+  DCGM, such as WSL2). The second needs kube-state-metrics and a `node` label on the exporter's
+  series, and gives node-level figures where a node's GPUs are shared. CPU-only services show the
+  normal no-data state.
 
 ## Enabling Charts
 
