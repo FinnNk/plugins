@@ -151,5 +151,10 @@
   "Select Cluster": "",
   "Hide Prometheus metrics": "",
   "Show Prometheus metrics": "",
-  "{{count}} metrics_one": ""
+  "{{count}} metrics_one": "",
+  "GPU": "",
+  "GPU Utilization": "",
+  "GPU Memory": "",
+  "GPU Memory Used": "",
+  "GPU Memory Total": ""
 }

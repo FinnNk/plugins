@@ -153,5 +153,10 @@
   "Default Resolution": "",
   "Select Cluster": "",
   "Hide Prometheus metrics": "",
-  "Show Prometheus metrics": ""
+  "Show Prometheus metrics": "",
+  "GPU": "",
+  "GPU Utilization": "",
+  "GPU Memory": "",
+  "GPU Memory Used": "",
+  "GPU Memory Total": ""
 }

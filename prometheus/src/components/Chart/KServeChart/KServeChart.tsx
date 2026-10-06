@@ -38,6 +38,7 @@ import {
 } from '../../../util';
 import { PrometheusNotFoundBanner } from '../common';
 import { CustomToggleButton } from '../GenericMetricsChart/GenericMetricsChart';
+import { KServeGpuChart } from './KServeGpuChart';
 import { KServeLatencyChart } from './KServeLatencyChart';
 import { KServeRequestRateChart } from './KServeRequestRateChart';
 import { KServeResourceChart } from './KServeResourceChart';
@@ -98,6 +99,12 @@ export function KServeChart({
         label: t('Resources'),
         icon: 'mdi:chip',
         component: KServeResourceChart,
+      },
+      {
+        key: 'gpu',
+        label: t('GPU'),
+        icon: 'mdi:expansion-card',
+        component: KServeGpuChart,
       },
     ],
     [t]

@@ -95,3 +95,46 @@ export function getKServeQueries(
     memory: `sum(container_memory_working_set_bytes{${containerSelector}})`,
   };
 }
+
+/**
+ * Builds the PromQL queries for the GPUs an InferenceService component's pods hold.
+ *
+ * Two exporters are supported, joined with `or` so whichever is installed answers:
+ *
+ * - NVIDIA dcgm-exporter labels each GPU series with the `namespace` and `pod` using it, so the
+ *   component's pods are selected directly. `DCGM_FI_DEV_GPU_UTIL` is a percentage and
+ *   `DCGM_FI_DEV_FB_USED` / `DCGM_FI_DEV_FB_FREE` are MiB.
+ * - nvidia_gpu_exporter (`nvidia_smi_*`, for nodes where DCGM is unavailable, such as WSL2) only
+ *   knows the node, so its series are matched to the nodes of the component's pods that request
+ *   `nvidia.com/gpu`, taken from kube-state-metrics. This requires the scrape to carry a `node`
+ *   label. On a node whose GPUs are shared by several pods, these are node-level figures.
+ *
+ * Pods without a GPU request match nothing, so CPU-only services show no data.
+ * @param namespace - Namespace of the InferenceService.
+ * @param serviceName - Name of the InferenceService.
+ * @param component - Component whose pods should be queried.
+ * @returns Queries for GPU utilisation (0-1), memory used and memory total (bytes).
+ */
+export function getKServeGpuQueries(
+  namespace: string,
+  serviceName: string,
+  component: KServeComponent = 'predictor'
+) {
+  const selector = getKServePodSelector(namespace, serviceName, component);
+  const gpuNodes = `max by (node) (kube_pod_container_resource_limits{${selector},resource='nvidia_com_gpu'} > bool 0)`;
+  const onGpuNodes = (metric: string) =>
+    `max by (node) (${metric} * on (node) group_left () ${gpuNodes})`;
+  const mib = 1024 * 1024;
+
+  return {
+    utilization: `avg(DCGM_FI_DEV_GPU_UTIL{${selector}}) / 100 or avg(${onGpuNodes(
+      'nvidia_smi_utilization_gpu_ratio'
+    )})`,
+    memoryUsed: `sum(DCGM_FI_DEV_FB_USED{${selector}}) * ${mib} or sum(${onGpuNodes(
+      'nvidia_smi_memory_used_bytes'
+    )})`,
+    memoryTotal: `sum(DCGM_FI_DEV_FB_USED{${selector}} + DCGM_FI_DEV_FB_FREE{${selector}}) * ${mib} or sum(${onGpuNodes(
+      'nvidia_smi_memory_total_bytes'
+    )})`,
+  };
+}
